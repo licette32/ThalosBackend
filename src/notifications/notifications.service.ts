@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Resend } from "resend";
 import { SupabaseService } from "../supabase/supabase.service";
 import {
@@ -24,12 +25,16 @@ import {
 export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
   private resend: Resend;
-  private readonly fromEmail = "Thalos <notifications@thalosplatform.xyz>";
+  private fromEmail: string;
 
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly configService: ConfigService
+  ) {}
 
   onModuleInit() {
-    const apiKey = process.env.RESEND_API_KEY;
+    this.fromEmail = this.configService.get<string>("EMAIL_FROM", "Thalos <notifications@thalosplatform.xyz>");
+    const apiKey = this.configService.get<string>("RESEND_API_KEY");
     if (!apiKey) {
       this.logger.warn("RESEND_API_KEY not configured - email notifications disabled");
       return;
