@@ -14,7 +14,7 @@ Copiá `.env.example` a `.env` y completá valores. `JWT_SECRET` debe coincidir 
 
 - `SUPABASE_URL`: misma URL pública del proyecto (sin depender de `NEXT_PUBLIC` en Nest).
 - `THALOS_INTERNAL_SECRET`: compartido con Next en `THALOS_INTERNAL_SECRET` para `/api/trustless/relay`.
-- `TRUSTLESSWORK_API_URL` / `TRUSTLESSWORK_API_KEY`: API de Trustless Work; la clave vive **solo** acá.
+- `TRUSTLESSWORK_API_URL` / `TRUSTLESSWORK_API_KEY` (**obligatorias**): API de Trustless Work; la clave vive **solo** acá y se envía como `x-api-key` en cada llamada.
 - `PLATFORM_ADDRESS`, `DISPUTE_RESOLVER`, `TRUSTLINE_USDC_ADDRESS` (opcionales): config de plataforma para crear escrows; tienen defaults de testnet.
 
 ## Arranque
