@@ -1,6 +1,8 @@
+import { OnEvent } from "@nestjs/event-emitter";
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { Resend } from "resend";
 import { SupabaseService } from "../supabase/supabase.service";
+import { AgreementEventNames } from "../events/agreement-events";
 import {
   AgreementCreatedData,
   AgreementFundedData,
@@ -59,12 +61,21 @@ export class NotificationsService implements OnModuleInit {
   /**
    * Get emails for all participants of an agreement
    */
-  private async getParticipantEmails(agreementId: string): Promise<string[]> {
-    const { data: participants, error } = await this.supabase
+  private async getParticipantEmails(
+    agreementId: string,
+    excludedWallet?: string,
+  ): Promise<string[]> {
+    let query = this.supabase
       .getClient()
       .from("agreement_participants")
       .select("wallet_address")
       .eq("agreement_id", agreementId);
+
+    if (excludedWallet) {
+      query = query.neq("wallet_address", excludedWallet);
+    }
+
+    const { data: participants, error } = await query;
 
     if (error || !participants?.length) {
       return [];
@@ -120,6 +131,24 @@ export class NotificationsService implements OnModuleInit {
     }
   }
 
+  @OnEvent(AgreementEventNames.EvidenceSubmitted)
+  async handleEvidenceSubmitted(data: EvidenceSubmittedData): Promise<void> {
+    try {
+      await this.notifyEvidenceSubmitted(data, data.submittedByWallet);
+    } catch (error) {
+      this.logger.error("Failed to handle evidence submitted event", error);
+    }
+  }
+
+  @OnEvent(AgreementEventNames.MilestoneApproved)
+  async handleMilestoneApproved(data: MilestoneApprovedData): Promise<void> {
+    try {
+      await this.notifyMilestoneApproved(data);
+    } catch (error) {
+      this.logger.error("Failed to handle milestone approved event", error);
+    }
+  }
+
   /**
    * Notify when a new agreement is created
    */
@@ -153,8 +182,11 @@ export class NotificationsService implements OnModuleInit {
   /**
    * Notify when evidence is submitted for a milestone
    */
-  async notifyEvidenceSubmitted(data: EvidenceSubmittedData): Promise<void> {
-    const emails = await this.getParticipantEmails(data.agreementId);
+  async notifyEvidenceSubmitted(
+    data: EvidenceSubmittedData,
+    excludedWallet?: string,
+  ): Promise<void> {
+    const emails = await this.getParticipantEmails(data.agreementId, excludedWallet);
     if (emails.length === 0) return;
 
     const html = evidenceSubmittedTemplate(data);

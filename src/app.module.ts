@@ -1,3 +1,4 @@
+import { EventEmitterModule } from "@nestjs/event-emitter";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { CommonModule } from "./common/common.module";
@@ -17,6 +18,12 @@ import { WalletsModule } from "./wallets/wallets.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot({
+      delimiter: ".",
+      ignoreErrors: true,
+      maxListeners: 20,
+      wildcard: true,
+    }),
     CommonModule,
     SupabaseModule,
     AuthModule,

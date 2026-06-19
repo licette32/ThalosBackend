@@ -1,3 +1,4 @@
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import {
   ForbiddenException,
   Injectable,
@@ -8,10 +9,14 @@ import { CreateAgreementDto } from "./dto/create-agreement.dto";
 import { LinkContractDto } from "./dto/link-contract.dto";
 import { UpdateAgreementStatusDto } from "./dto/update-status.dto";
 import { UpdateMilestoneDto } from "./dto/update-milestone.dto";
+import { AgreementEventNames } from "../events/agreement-events";
 
 @Injectable()
 export class AgreementsService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   private async walletForUserId(userId: string): Promise<string | null> {
     const { data, error } = await this.supabase
@@ -213,7 +218,7 @@ export class AgreementsService {
     const { data: agreement, error: fetchError } = await this.supabase
       .getClient()
       .from("agreements")
-      .select("milestones")
+      .select("id, title, amount, asset, milestones")
       .eq("id", agreementId)
       .single();
 
@@ -225,6 +230,9 @@ export class AgreementsService {
       description: string;
       amount: string;
       status: string;
+      evidence_description?: string;
+      evidence_urls?: string[];
+      evidence_submitted_at?: string;
     }>;
     if (
       dto.milestone_index < 0 ||
@@ -233,7 +241,22 @@ export class AgreementsService {
       return { success: false, error: "Invalid milestone index" };
     }
 
-    milestones[dto.milestone_index].status = dto.status;
+    const milestone = milestones[dto.milestone_index];
+    const previousStatus = milestone.status;
+    const emitsEvidence =
+      dto.evidence_description !== undefined || dto.evidence_urls !== undefined;
+
+    milestone.status = dto.status;
+
+    if (dto.evidence_description !== undefined) {
+      milestone.evidence_description = dto.evidence_description;
+    }
+    if (dto.evidence_urls !== undefined) {
+      milestone.evidence_urls = dto.evidence_urls;
+    }
+    if (emitsEvidence) {
+      milestone.evidence_submitted_at = new Date().toISOString();
+    }
 
     const { error: updateError } = await this.supabase
       .getClient()
@@ -252,9 +275,44 @@ export class AgreementsService {
       `milestone_${dto.status}`,
       {
         milestone_index: dto.milestone_index,
-        milestone_description: milestones[dto.milestone_index].description,
+        milestone_description: milestone.description,
+        milestone_amount: milestone.amount,
+        asset: agreement.asset ?? "USDC",
+        evidence_description: dto.evidence_description,
+        evidence_urls: dto.evidence_urls,
       },
     );
+
+    try {
+      if (emitsEvidence) {
+        this.eventEmitter.emit(AgreementEventNames.EvidenceSubmitted, {
+          agreementId: agreement.id,
+          agreementTitle: agreement.title ?? agreementId,
+          milestoneIndex: dto.milestone_index,
+          milestoneDescription: milestone.description,
+          milestoneAmount: milestone.amount,
+          asset: agreement.asset ?? "USDC",
+          submittedByWallet: dto.actor_wallet,
+          evidenceDescription: dto.evidence_description,
+          evidenceUrls: dto.evidence_urls,
+        });
+      }
+
+      if (previousStatus !== "approved" && dto.status === "approved") {
+        this.eventEmitter.emit(AgreementEventNames.MilestoneApproved, {
+          agreementId: agreement.id,
+          agreementTitle: agreement.title ?? agreementId,
+          milestoneIndex: dto.milestone_index,
+          milestoneDescription: milestone.description,
+          milestoneAmount: milestone.amount,
+          asset: agreement.asset ?? "USDC",
+          approvedByWallet: dto.actor_wallet,
+        });
+      }
+    } catch (error) {
+      console.error("emitMilestoneEvent", error);
+    }
+
     return { success: true, error: null };
   }
 

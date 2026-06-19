@@ -111,6 +111,10 @@ export function evidenceSubmittedTemplate(data: EvidenceSubmittedData): string {
           <td style="padding: 8px 0; color: #1a1a2e; font-weight: 600;">#${data.milestoneIndex + 1} - ${data.milestoneDescription}</td>
         </tr>
         <tr>
+          <td style="padding: 8px 0; color: #6b6b80;">Amount:</td>
+          <td style="padding: 8px 0; color: #1a1a2e; font-weight: 600;">${formatAmount(data.milestoneAmount, data.asset)}</td>
+        </tr>
+        <tr>
           <td style="padding: 8px 0; color: #6b6b80;">Submitted by:</td>
           <td style="padding: 8px 0; color: #1a1a2e;">${data.submittedByName || formatWallet(data.submittedByWallet)}</td>
         </tr>
@@ -118,6 +122,14 @@ export function evidenceSubmittedTemplate(data: EvidenceSubmittedData): string {
         <tr>
           <td style="padding: 8px 0; color: #6b6b80;">Description:</td>
           <td style="padding: 8px 0; color: #1a1a2e;">${data.evidenceDescription}</td>
+        </tr>
+        ` : ""}
+        ${data.evidenceUrls?.length ? `
+        <tr>
+          <td style="padding: 8px 0; color: #6b6b80;">Evidence:</td>
+          <td style="padding: 8px 0; color: #1a1a2e;">
+            ${data.evidenceUrls.map((url) => `<a href="${url}" style="color: #6366f1; text-decoration: none;">View evidence</a>`).join("<br>")}
+          </td>
         </tr>
         ` : ""}
       </table>
