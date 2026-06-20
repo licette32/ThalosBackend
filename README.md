@@ -1,45 +1,136 @@
 # Thalos Backend (NestJS)
 
-API para acuerdos en Supabase, contactos, búsqueda de perfiles y relay interno hacia Trustless Work (clave solo en servidor).
+API layer for the [Thalos](https://github.com/Thalos-Infrastructure) escrow orchestration platform. It handles agreements, contacts, profile search, disputes, email notifications, and an **internal relay to Trustless Work** that keeps the Trustless Work API key on the server (it never reaches the browser).
 
-## Requisitos
+> Thalos is an escrow orchestration layer on the **Stellar** network, connected to the **Trustless Work** protocol. The user always signs transactions client-side; this backend only adds the server-side API key and forwards requests — it never custodies keys or funds.
+
+## Tech stack
+
+- **NestJS 11** + TypeScript
+- **Supabase** (`@supabase/supabase-js`) for data access (Postgres)
+- **Passport JWT** for app authentication
+- **class-validator / class-transformer** for input validation (DTOs)
+- **Swagger** (`@nestjs/swagger`) for interactive API docs
+- **Resend** for transactional emails
+
+## Requirements
 
 - Node.js 20+
-- pnpm o npm
-- Proyecto Supabase con las tablas usadas por el frontend (`agreements`, `agreement_participants`, `agreement_activity`, `profiles`, `contacts`, `auth_users`, …). Migraciones recomendadas: `009_agreements_contract_id.sql`, `010_agreements_nest_columns.sql` (columnas y checks que espera Nest).
+- pnpm (recommended) or npm
+- A Supabase project with the tables used by the platform (`agreements`, `agreement_participants`, `agreement_activity`, `profiles`, `contacts`, `auth_users`, `disputes`, `dispute_resolutions`, …)
 
-## Variables de entorno
+## Environment variables
 
-Copiá `.env.example` a `.env` y completá valores. `JWT_SECRET` debe coincidir con el del frontend (`ThalosFrontend`).
+Copy [`.env.example`](.env.example) to `.env.local` and fill in real values. `.env` / `.env.local` are gitignored and must never be committed.
 
-- `SUPABASE_URL`: misma URL pública del proyecto (sin depender de `NEXT_PUBLIC` en Nest).
-- `THALOS_INTERNAL_SECRET`: compartido con Next en `THALOS_INTERNAL_SECRET` para `/api/trustless/relay`.
+| Variable | Required | Description |
+|---|---|---|
+| `JWT_SECRET` | Yes | Secret used to verify the app JWT (HS256). **Must be identical** to the frontend's `JWT_SECRET`, or tokens are rejected with 401. |
+| `SUPABASE_URL` | Yes | Supabase project URL (same project the frontend uses). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key. Server-side only — full DB access, keep secret. |
+| `THALOS_INTERNAL_SECRET` | Yes | Shared secret for the internal Next.js → Nest relay (`x-thalos-internal-secret`). Must match the frontend's value. |
+| `TRUSTLESSWORK_API_URL` | For escrow ops | Base URL of the Trustless Work API. |
+| `TRUSTLESSWORK_API_KEY` | For escrow ops | Trustless Work API key, injected server-side by the relay. **Never expose to the browser.** |
+| `RESEND_API_KEY` | For emails | Resend API key. If unset, email notifications are disabled (logged, non-fatal). |
+| `PORT` | No | HTTP port. Defaults to **3001**. |
+| `THALOS_CORS_ORIGIN` | No | Comma-separated list of allowed CORS origins. Defaults to allowing all. |
 
-## Arranque
+## Getting started
 
 ```bash
 pnpm install
-pnpm run start:dev
+pnpm run start:dev   # watch mode
 ```
 
-Por defecto escucha en el puerto **3001**.
+The server listens on port **3001** by default with a global `v1` prefix.
 
-- **Documentación interactiva (Swagger UI):** `http://localhost:3001/v1/docs`
+- **Swagger UI:** `http://localhost:3001/v1/docs`
 - **OpenAPI JSON:** `http://localhost:3001/v1/docs-json`
-- **Raíz del API (punteros):** `GET http://localhost:3001/v1`
+- **API root (pointers):** `GET http://localhost:3001/v1`
 
-## Rutas principales
+### Scripts
 
-| Prefijo | Auth | Descripción |
-|--------|------|-------------|
-| `POST /v1/internal/trustless/relay` | Header `x-thalos-internal-secret` | Proxy hacia Trustless Work (solo servidor Next) |
-| `POST /v1/trustless/prepare` | Bearer JWT app | Mismo relay que arriba; respuesta incluye `unsignedTransaction` cuando TW la envía |
-| `GET|POST|PATCH /v1/agreements/*` | Bearer JWT app | CRUD acuerdos en Supabase |
-| `GET /v1/users/search` | Bearer JWT | Búsqueda de perfiles |
-| `GET|POST|DELETE /v1/contacts` | Bearer JWT | Contactos |
+| Command | Description |
+|---|---|
+| `pnpm run start:dev` | Start in watch mode (development) |
+| `pnpm run start` | Start without watch |
+| `pnpm run build` | Compile to `dist/` |
+| `pnpm run start:prod` | Run the compiled build (`node dist/main`) |
 
-El navegador debe llamar al front en `/api/thalos/...` y `/api/trustless/relay` para no exponer secretos ni pelear CORS.
+There is also a `smoke-test-backend.ps1` PowerShell script for a quick end-to-end check.
 
-## Documentación de alcance
+## Architecture
 
-Ver [docs/SCOPE.md](docs/SCOPE.md).
+```
+Browser (wallet signs client-side)
+   │
+   ▼
+Next.js  ──/api/* (server)──►  NestJS (v1/*)  ──►  Supabase (Postgres)
+   │                                │
+   └──internal relay───────────────►└──► Trustless Work API (x-api-key, server only)
+```
+
+- **Feature modules** live under `src/<feature>/`, each with `*.module.ts`, `*.controller.ts`, `*.service.ts`, and `dto/`.
+- **Controllers are thin:** they route, apply guards, extract the user via `@CurrentUser()`, and translate the service result into HTTP responses. Business logic lives in the **service**.
+- **Data access** always goes through `SupabaseService.getClient()`, injected into the service constructor.
+- **Authorization** is enforced in services before touching data (e.g. `assertActorWallet`, `assertCanAccessAgreement`): the wallet from the JWT must match the actor and be a participant of the resource.
+- **Recoverable errors:** services return `{ data, error }` and the controller decides the HTTP status; non-critical failures (activity logs, emails) are swallowed and logged so they don't break the main flow.
+
+### Global configuration (`src/main.ts`)
+
+- Global prefix `v1`.
+- Global `ValidationPipe` with `whitelist + forbidNonWhitelisted + transform` — **every accepted field must be declared in a DTO**, or the request is rejected.
+- CORS configurable via `THALOS_CORS_ORIGIN`.
+- Swagger with two auth schemes: `bearer` (app JWT) and `thalos-internal` (internal relay header).
+
+### Modules
+
+| Module | Responsibility |
+|---|---|
+| `auth` | JWT strategy, `JwtAuthGuard`, `@CurrentUser()` decorator |
+| `supabase` | Singleton Supabase client (`SupabaseService`) |
+| `agreements` | Agreement CRUD, milestones, status, activity log |
+| `agreement-chat` | Per-agreement chat messages |
+| `contacts` | User contacts |
+| `disputes` | Dispute lifecycle (open, assign resolver, resolve, cancel) |
+| `profiles` / `users` | Profile data and user search |
+| `wallets` | Wallet linking |
+| `notifications` | Resend-based email notifications + HTML templates |
+| `internal-trustless` | Relay to Trustless Work + typed escrow read endpoints |
+
+## Authentication & security
+
+Two independent mechanisms:
+
+1. **App JWT (`Bearer`)** — protects user-facing routes via `JwtAuthGuard`. The token must be signed with `JWT_SECRET` (HS256), unexpired, and carry a `sub` claim. Issued by the frontend on login.
+2. **Internal secret (`x-thalos-internal-secret`)** — protects server-to-server routes via `InternalSecretGuard`. Intended only for the Next.js server, never the browser.
+
+The browser must call the Next.js frontend (`/api/...`), which forwards to this backend — this keeps secrets server-side and avoids CORS issues.
+
+## Main routes
+
+| Route | Auth | Description |
+|---|---|---|
+| `GET /v1` | — | API root / pointers |
+| `POST /v1/trustless/prepare` | Bearer JWT | Relay to Trustless Work; returns the upstream `{ status, data }` (e.g. `{ unsignedTransaction }` to sign client-side) |
+| `POST /v1/internal/trustless/relay` | Internal secret | Same relay, for the Next.js server only |
+| `GET /v1/escrows/by-signer/:address` | Bearer JWT | Escrows where the address is a signer |
+| `GET /v1/escrows/by-role` | Bearer JWT | Escrows filtered by role/status/type |
+| `GET\|POST\|PATCH /v1/agreements/*` | Bearer JWT | Agreement CRUD, milestones, status, activity |
+| `GET\|POST\|PATCH /v1/disputes/*` | Bearer JWT | Dispute lifecycle |
+| `GET /v1/users/search` | Bearer JWT | Profile search |
+| `GET\|POST\|DELETE /v1/contacts` | Bearer JWT | Contacts |
+| `POST /v1/internal/notifications/*` | Internal secret | Trigger transactional emails |
+
+The Trustless Work relay only allows paths under `deployer/`, `escrow/`, and `helper/`.
+
+> Tip: in Swagger UI (`/v1/docs`), use **Authorize** to paste a JWT and try the protected routes without building the curl by hand.
+
+## Database & migrations
+
+SQL migrations live under [`scripts/`](scripts). Apply them to the Supabase project before running the API.
+
+## Docs
+
+- [`docs/SCOPE.md`](docs/SCOPE.md) — closed scope decisions.
+- [`docs/EMAIL_NOTIFICATIONS_PLAN.md`](docs/EMAIL_NOTIFICATIONS_PLAN.md) — event-driven email notifications plan (epic + tickets).
