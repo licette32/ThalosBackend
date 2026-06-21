@@ -14,6 +14,7 @@ import { AgreementChatModule } from "./agreement-chat/agreement-chat.module";
 import { DisputesModule } from "./disputes/disputes.module";
 import { ProfilesModule } from "./profiles/profiles.module";
 import { WalletsModule } from "./wallets/wallets.module";
+import { EventsModule } from "./events/events.module";
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { WalletsModule } from "./wallets/wallets.module";
     DisputesModule,
     ProfilesModule,
     WalletsModule,
+    EventsModule,
   ],
   controllers: [RootController],
 })
