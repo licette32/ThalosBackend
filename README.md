@@ -31,6 +31,9 @@ Copy [`.env.example`](.env.example) to `.env.local` and fill in real values. `.e
 | `THALOS_INTERNAL_SECRET` | Yes | Shared secret for the internal Next.js → Nest relay (`x-thalos-internal-secret`). Must match the frontend's value. |
 | `TRUSTLESSWORK_API_URL` | For escrow ops | Base URL of the Trustless Work API. |
 | `TRUSTLESSWORK_API_KEY` | For escrow ops | Trustless Work API key, injected server-side by the relay. **Never expose to the browser.** |
+| `PLATFORM_ADDRESS` | No | Platform address used when creating escrows. Has a testnet default. |
+| `DISPUTE_RESOLVER` | No | Dispute resolver address used when creating escrows. Has a testnet default. |
+| `TRUSTLINE_USDC_ADDRESS` | No | USDC trustline address used when creating escrows. Has a testnet default. |
 | `RESEND_API_KEY` | For emails | Resend API key. If unset, email notifications are disabled (logged, non-fatal). |
 | `PORT` | No | HTTP port. Defaults to **3001**. |
 | `THALOS_CORS_ORIGIN` | No | Comma-separated list of allowed CORS origins. Defaults to allowing all. |
@@ -116,6 +119,8 @@ The browser must call the Next.js frontend (`/api/...`), which forwards to this 
 | `POST /v1/internal/trustless/relay` | Internal secret | Same relay, for the Next.js server only |
 | `GET /v1/escrows/by-signer/:address` | Bearer JWT | Escrows where the address is a signer |
 | `GET /v1/escrows/by-role` | Bearer JWT | Escrows filtered by role/status/type |
+| `POST /v1/escrows/{create,fund,approve-milestone,change-milestone-status,release,dispute}` | Bearer JWT | Escrow writes; return an `unsignedTransaction` to sign client-side. Enforce that the signer matches the JWT wallet |
+| `POST /v1/escrows/send-transaction` | Bearer JWT | Submit the already-signed XDR to the network |
 | `GET\|POST\|PATCH /v1/agreements/*` | Bearer JWT | Agreement CRUD, milestones, status, activity |
 | `GET\|POST\|PATCH /v1/disputes/*` | Bearer JWT | Dispute lifecycle |
 | `GET /v1/users/search` | Bearer JWT | Profile search |
