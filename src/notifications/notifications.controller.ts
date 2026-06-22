@@ -1,13 +1,6 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-} from "@nestjs/common";
-import { NotificationsService } from "./notifications.service";
-import { InternalSecretGuard } from "../internal-trustless/internal-secret.guard";
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { NotificationsService } from './notifications.service';
+import { InternalSecretGuard } from '../internal-trustless/internal-secret.guard';
 import {
   NotifyAgreementCreatedDto,
   NotifyAgreementFundedDto,
@@ -17,18 +10,18 @@ import {
   NotifyDisputeResolvedDto,
   NotifyAgreementCompletedDto,
   SendCustomNotificationDto,
-} from "./dto/notification.dto";
+} from './dto/notification.dto';
 
 /**
  * Internal controller for sending notifications.
  * Protected by internal secret guard - only accessible from trusted services.
  */
-@Controller("internal/notifications")
+@Controller('internal/notifications')
 @UseGuards(InternalSecretGuard)
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
-  @Post("agreement-created")
+  @Post('agreement-created')
   @HttpCode(HttpStatus.OK)
   async notifyAgreementCreated(@Body() dto: NotifyAgreementCreatedDto) {
     await this.notifications.notifyAgreementCreated({
@@ -44,7 +37,7 @@ export class NotificationsController {
     return { success: true };
   }
 
-  @Post("agreement-funded")
+  @Post('agreement-funded')
   @HttpCode(HttpStatus.OK)
   async notifyAgreementFunded(@Body() dto: NotifyAgreementFundedDto) {
     await this.notifications.notifyAgreementFunded({
@@ -59,7 +52,7 @@ export class NotificationsController {
     return { success: true };
   }
 
-  @Post("evidence-submitted")
+  @Post('evidence-submitted')
   @HttpCode(HttpStatus.OK)
   async notifyEvidenceSubmitted(@Body() dto: NotifyEvidenceSubmittedDto) {
     await this.notifications.notifyEvidenceSubmitted({
@@ -77,7 +70,7 @@ export class NotificationsController {
     return { success: true };
   }
 
-  @Post("milestone-approved")
+  @Post('milestone-approved')
   @HttpCode(HttpStatus.OK)
   async notifyMilestoneApproved(@Body() dto: NotifyMilestoneApprovedDto) {
     await this.notifications.notifyMilestoneApproved({
@@ -93,7 +86,7 @@ export class NotificationsController {
     return { success: true };
   }
 
-  @Post("dispute-opened")
+  @Post('dispute-opened')
   @HttpCode(HttpStatus.OK)
   async notifyDisputeOpened(@Body() dto: NotifyDisputeOpenedDto) {
     await this.notifications.notifyDisputeOpened({
@@ -108,7 +101,7 @@ export class NotificationsController {
     return { success: true };
   }
 
-  @Post("dispute-resolved")
+  @Post('dispute-resolved')
   @HttpCode(HttpStatus.OK)
   async notifyDisputeResolved(@Body() dto: NotifyDisputeResolvedDto) {
     await this.notifications.notifyDisputeResolved({
@@ -125,7 +118,7 @@ export class NotificationsController {
     return { success: true };
   }
 
-  @Post("agreement-completed")
+  @Post('agreement-completed')
   @HttpCode(HttpStatus.OK)
   async notifyAgreementCompleted(@Body() dto: NotifyAgreementCompletedDto) {
     await this.notifications.notifyAgreementCompleted({
@@ -138,14 +131,10 @@ export class NotificationsController {
     return { success: true };
   }
 
-  @Post("custom")
+  @Post('custom')
   @HttpCode(HttpStatus.OK)
   async sendCustomNotification(@Body() dto: SendCustomNotificationDto) {
-    await this.notifications.sendCustomNotification(
-      dto.wallets,
-      dto.subject,
-      dto.html,
-    );
+    await this.notifications.sendCustomNotification(dto.wallets, dto.subject, dto.html);
     return { success: true };
   }
 }
