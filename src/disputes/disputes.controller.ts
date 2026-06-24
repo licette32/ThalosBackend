@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUserCtx } from '../auth/current-user.decorator';
 import { DisputesService } from './disputes.service';
@@ -9,6 +10,8 @@ import {
   CancelDisputeDto,
 } from './dto/disputes.dto';
 
+@ApiTags('disputes')
+@ApiBearerAuth('bearer')
 @Controller('disputes')
 @UseGuards(JwtAuthGuard)
 export class DisputesController {
