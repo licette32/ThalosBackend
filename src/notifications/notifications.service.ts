@@ -29,6 +29,35 @@ import {
   type DisputeResolvedEventPayload,
 } from '../common/constants/notification-events';
 
+/**
+ * Fallback sender address used when EMAIL_FROM is not configured.
+ *
+ * Keeping the same domain as the historical default so existing Resend
+ * domain verifications continue to work out-of-the-box. Override by setting
+ * EMAIL_FROM (and optionally EMAIL_REPLY_TO) in the environment.
+ *
+ * Variable names intentionally match the Thalos frontend
+ * (`lib/email/resend.ts` → `EMAIL_FROM`, `EMAIL_REPLY_TO`).
+ */
+const DEFAULT_FROM_EMAIL = "Thalos <notifications@thalosplatform.xyz>";
+const DEFAULT_REPLY_TO = "Thalos <no-reply@thalosplatform.xyz>";
+
+/**
+ * Read an env var via ConfigService, trimming whitespace, falling back to
+ * `fallback` when unset or blank. Centralised so tests can rely on the same
+ * parsing rules as production.
+ */
+function pickFromEnv(
+  config: ConfigService,
+  key: string,
+  fallback: string,
+): string {
+  const raw = config.get<string>(key);
+  if (raw == null) return fallback;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+}
+
 @Injectable()
 export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
@@ -103,7 +132,9 @@ export class NotificationsService implements OnModuleInit {
   }
 
   /**
-   * Send email using Resend
+   * Send email using Resend. Mirrors the frontend payload shape (`replyTo`
+   * always present, never undefined, so Resend's API contract is satisfied
+   * even when only `from` is overridden).
    */
   private async sendEmail(to: string | string[], subject: string, html: string): Promise<boolean> {
     if (!this.resend) {
@@ -123,6 +154,7 @@ export class NotificationsService implements OnModuleInit {
         to: recipients,
         subject,
         html,
+        replyTo: this.replyTo,
       });
 
       if (error) {
@@ -130,7 +162,9 @@ export class NotificationsService implements OnModuleInit {
         return false;
       }
 
-      this.logger.log(`Email sent to ${recipients.length} recipient(s): ${subject}`);
+      this.logger.log(
+        `Email sent to ${recipients.length} recipient(s): ${subject}`,
+      );
       return true;
     } catch (err) {
       this.logger.error('Error sending email', err);
