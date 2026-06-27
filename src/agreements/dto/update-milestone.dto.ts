@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsString, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateMilestoneDto {
   @IsInt()
@@ -11,4 +11,13 @@ export class UpdateMilestoneDto {
 
   @IsString()
   actor_wallet: string;
+
+  @IsOptional()
+  @IsString()
+  evidence_description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  evidence_urls?: string[];
 }
