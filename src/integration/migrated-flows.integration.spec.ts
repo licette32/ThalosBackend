@@ -2,9 +2,9 @@ import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
+import * as jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
@@ -18,6 +18,15 @@ import { DisputesService } from '../disputes/disputes.service';
 import { EscrowsController } from '../internal-trustless/escrows.controller';
 import { WalletsController } from '../wallets/wallets.controller';
 import { WalletsService } from '../wallets/wallets.service';
+
+// WalletsService transitively imports @stellar/stellar-sdk, which ships ESM that
+// ts-jest does not transform. The migrated flows under test never exercise
+// on-chain signature verification, so stub the only symbol that is pulled in.
+jest.mock('@stellar/stellar-sdk', () => ({
+  Keypair: {
+    fromPublicKey: () => ({ verify: () => true }),
+  },
+}));
 
 type Row = Record<string, any>;
 type QueryResult = { data?: any; error: { message: string; code?: string } | null; count?: number };
@@ -314,7 +323,6 @@ class InMemorySupabase {
 
 describe('migrated backend flows (integration)', () => {
   let app: INestApplication;
-  let jwt: JwtService;
   let supabase: InMemorySupabase;
   let disputeAgreementSequence = 0;
   const apiClient = {
@@ -351,7 +359,6 @@ describe('migrated backend flows (integration)', () => {
       }),
     );
     await app.init();
-    jwt = app.get(JwtService);
   });
 
   beforeEach(() => {
@@ -388,7 +395,12 @@ describe('migrated backend flows (integration)', () => {
     await app.close();
   });
 
-  const tokenFor = (sub = USER_ID) => jwt.sign({ sub, email: `${sub}@example.com` });
+  // Sign HS256 tokens exactly as the frontend does; AuthModule only verifies them.
+  const tokenFor = (sub = USER_ID) =>
+    jwt.sign({ sub, email: `${sub}@example.com` }, JWT_SECRET, {
+      algorithm: 'HS256',
+      expiresIn: '7d',
+    });
   const auth = (sub = USER_ID) => ({ Authorization: `Bearer ${tokenFor(sub)}` });
 
   it('accepts the app login JWT and rejects invalid tokens', async () => {

@@ -104,6 +104,8 @@ function buildService(env: Record<string, string | undefined>) {
       }),
   } as unknown as SupabaseService;
   const service = new NotificationsService(supabase, config);
+  // Trigger lifecycle so fromEmail/replyTo read from ConfigService
+  service.onModuleInit();
 
   const resendMock = buildResendMock();
   // Inject the Resend client directly (mirrors what onModuleInit would have
