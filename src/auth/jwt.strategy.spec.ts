@@ -101,9 +101,9 @@ describe('JwtStrategy.validate — rejection cases', () => {
 
   it('rejects a token with a different algorithm (HS512 is not HS256)', () => {
     const token = jwt.sign({ sub: 'u1' }, REAL_SECRET, { algorithm: 'HS512' });
-    expect(() =>
-      jwt.verify(token, REAL_SECRET, { algorithms: ['HS256'] }),
-    ).toThrow(jwt.JsonWebTokenError);
+    expect(() => jwt.verify(token, REAL_SECRET, { algorithms: ['HS256'] })).toThrow(
+      jwt.JsonWebTokenError,
+    );
   });
 
   it('rejects a completely malformed token string', () => {

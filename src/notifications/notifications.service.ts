@@ -39,19 +39,15 @@ import {
  * Variable names intentionally match the Thalos frontend
  * (`lib/email/resend.ts` → `EMAIL_FROM`, `EMAIL_REPLY_TO`).
  */
-const DEFAULT_FROM_EMAIL = "Thalos <notifications@thalosplatform.xyz>";
-const DEFAULT_REPLY_TO = "Thalos <no-reply@thalosplatform.xyz>";
+const DEFAULT_FROM_EMAIL = 'Thalos <notifications@thalosplatform.xyz>';
+const DEFAULT_REPLY_TO = 'Thalos <no-reply@thalosplatform.xyz>';
 
 /**
  * Read an env var via ConfigService, trimming whitespace, falling back to
  * `fallback` when unset or blank. Centralised so tests can rely on the same
  * parsing rules as production.
  */
-function pickFromEnv(
-  config: ConfigService,
-  key: string,
-  fallback: string,
-): string {
+function pickFromEnv(config: ConfigService, key: string, fallback: string): string {
   const raw = config.get<string>(key);
   if (raw == null) return fallback;
   const trimmed = raw.trim();
@@ -62,18 +58,19 @@ function pickFromEnv(
 export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
   private resend: Resend;
-  private fromEmail = 'Thalos <notifications@thalosplatform.xyz>';
-  private replyTo = 'Thalos <no-reply@thalosplatform.xyz>';
+  private fromEmail = DEFAULT_FROM_EMAIL;
+  private replyTo = DEFAULT_REPLY_TO;
 
   constructor(
     private readonly supabase: SupabaseService,
-    private readonly configService: ConfigService
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.fromEmail = pickFromEnv(this.configService, 'EMAIL_FROM', DEFAULT_FROM_EMAIL);
+    this.replyTo = pickFromEnv(this.configService, 'EMAIL_REPLY_TO', DEFAULT_REPLY_TO);
+  }
 
   onModuleInit() {
-    this.fromEmail = pickFromEnv(this.configService, "EMAIL_FROM", DEFAULT_FROM_EMAIL);
-    this.replyTo = pickFromEnv(this.configService, "EMAIL_REPLY_TO", DEFAULT_REPLY_TO);
-    const apiKey = this.configService.get<string>("RESEND_API_KEY");
+    const apiKey = this.configService.get<string>('RESEND_API_KEY');
     if (!apiKey) {
       this.logger.warn('RESEND_API_KEY not configured - email notifications disabled');
       return;
@@ -114,7 +111,7 @@ export class NotificationsService implements OnModuleInit {
       .eq('agreement_id', agreementId);
 
     if (excludedWallet) {
-      query = query.neq("wallet_address", excludedWallet);
+      query = query.neq('wallet_address', excludedWallet);
     }
 
     const { data: participants, error } = await query;
@@ -164,9 +161,7 @@ export class NotificationsService implements OnModuleInit {
         return false;
       }
 
-      this.logger.log(
-        `Email sent to ${recipients.length} recipient(s): ${subject}`,
-      );
+      this.logger.log(`Email sent to ${recipients.length} recipient(s): ${subject}`);
       return true;
     } catch (err) {
       this.logger.error('Error sending email', err);
@@ -179,7 +174,7 @@ export class NotificationsService implements OnModuleInit {
     try {
       await this.notifyEvidenceSubmitted(data, data.submittedByWallet);
     } catch (error) {
-      this.logger.error("Failed to handle evidence submitted event", error);
+      this.logger.error('Failed to handle evidence submitted event', error);
     }
   }
 
@@ -188,7 +183,7 @@ export class NotificationsService implements OnModuleInit {
     try {
       await this.notifyMilestoneApproved(data);
     } catch (error) {
-      this.logger.error("Failed to handle milestone approved event", error);
+      this.logger.error('Failed to handle milestone approved event', error);
     }
   }
 

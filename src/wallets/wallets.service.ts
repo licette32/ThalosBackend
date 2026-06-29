@@ -67,7 +67,9 @@ export class WalletsService {
   ) {
     this.stellarNetwork = this.config.get<string>('STELLAR_NETWORK') || 'testnet';
     this.horizonUrl =
-      this.stellarNetwork === 'mainnet' ? 'https://horizon.stellar.org' : 'https://horizon-testnet.stellar.org';
+      this.stellarNetwork === 'mainnet'
+        ? 'https://horizon.stellar.org'
+        : 'https://horizon-testnet.stellar.org';
     this.usdcIssuer =
       this.stellarNetwork === 'mainnet'
         ? 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' // Circle USDC mainnet
@@ -204,9 +206,10 @@ export class WalletsService {
 
     const isPrimary = count === 0;
 
-    // For non-custodial wallets, require valid SEP-0043 signature
-    let isVerified = false;
-    let verifiedAt: string | null = null;
+    // For non-custodial wallets, require valid SEP-0043 signature.
+    // Both branches below assign these before they are read.
+    let isVerified: boolean;
+    let verifiedAt: string | null;
 
     if (dto.wallet_type === 'custodial') {
       // Custodial wallets are auto-verified

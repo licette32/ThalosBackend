@@ -74,9 +74,7 @@ export function parseAndVerifyChallenge(
   }
 
   // Verify HMAC
-  const expectedHmac = createHmac('sha256', jwtSecret)
-    .update(payloadB64)
-    .digest('base64url');
+  const expectedHmac = createHmac('sha256', jwtSecret).update(payloadB64).digest('base64url');
 
   if (hmac !== expectedHmac) {
     throw new ForbiddenException('Invalid proof signature');
@@ -109,13 +107,13 @@ export function parseAndVerifyChallenge(
  * @param signedMessage  - The full challenge text including the Proof line.
  * @param signature      - Base64url-encoded Ed25519 signature.
  * @param walletAddress  - Stellar public key that should have signed.
- * @param passphrase     - Network passphrase.
+ * @param _passphrase    - Network passphrase (unused; signature verification is network-agnostic).
  */
 export function verifyStellarSignature(
   signedMessage: string,
   signature: string,
   walletAddress: string,
-  passphrase: string,
+  _passphrase: string,
 ): void {
   if (!signature) {
     throw new BadRequestException('signature is required');
@@ -129,9 +127,7 @@ export function verifyStellarSignature(
   }
 
   // The signed payload is the full message text WITHOUT the "Proof: ..." line.
-  const messageBody = signedMessage
-    .replace(/\nProof:\s*.+$/, '')
-    .trimEnd();
+  const messageBody = signedMessage.replace(/\nProof:\s*.+$/, '').trimEnd();
 
   const messageBytes = Buffer.from(messageBody, 'utf-8');
   const signatureBytes = Buffer.from(signature, 'base64url');
