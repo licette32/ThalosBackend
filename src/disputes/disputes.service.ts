@@ -233,6 +233,10 @@ export class DisputesService {
       throw new BadRequestException('Dispute is already resolved');
     }
 
+    if (!dispute.resolver_wallet || dispute.resolver_wallet !== dto.resolved_by) {
+      throw new ForbiddenException('Only the assigned resolver can resolve this dispute');
+    }
+
     // Create resolution
     const { data: resolution, error: resError } = await this.supabase
       .getClient()
