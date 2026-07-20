@@ -103,6 +103,7 @@ Next.js  ──/api/* (server)──►  NestJS (v1/*)  ──►  Supabase (Pos
 | `wallets` | Wallet linking |
 | `notifications` | Resend-based email notifications + HTML templates |
 | `internal-trustless` | Relay to Trustless Work + typed escrow read endpoints |
+| `verification` | KYC/KYB compliance status, aggregated across providers (single source of truth) |
 
 ## Authentication & security
 
@@ -127,6 +128,8 @@ The browser must call the Next.js frontend (`/api/...`), which forwards to this 
 | `GET\|POST\|PATCH /v1/agreements/*` | Bearer JWT | Agreement CRUD, milestones, status, activity |
 | `GET\|POST\|PATCH /v1/disputes/*` | Bearer JWT | Dispute lifecycle |
 | `GET /v1/users/search` | Bearer JWT | Profile search |
+| `GET /v1/verification/user/:id` | Bearer JWT | Standardized KYC compliance status for a user |
+| `GET /v1/verification/business/:id` | Bearer JWT | Standardized KYB compliance status for a business |
 | `GET\|POST\|DELETE /v1/contacts` | Bearer JWT | Contacts |
 | `POST /v1/internal/notifications/*` | Internal secret | Trigger transactional emails |
 
