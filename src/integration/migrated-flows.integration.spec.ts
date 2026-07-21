@@ -786,10 +786,7 @@ describe('migrated backend flows (integration)', () => {
 
       // 404: Not found
       const missingId = '550e8400-e29b-41d4-a716-446655449999';
-      await request(app.getHttpServer())
-        .get(`/v1/agreements/${missingId}`)
-        .set(auth())
-        .expect(404);
+      await request(app.getHttpServer()).get(`/v1/agreements/${missingId}`).set(auth()).expect(404);
 
       // 403: Mismatched / unauthorized wallet (other user accessing USER_ID's agreement)
       await request(app.getHttpServer())
